@@ -7,7 +7,7 @@ import (
 
 type Device struct {
 	gorm.Model
-	UUID      string   `gorm:"uniqueIndex"`
+	UID       string   `gorm:"uniqueIndex"`
 	Active    bool     `gorm:"default:false;not null;"`
 	Status    int      `gorm:"default:0;index;not null;"`
 	Groups    []*Group `gorm:"many2many:device_groups;"`
@@ -19,13 +19,13 @@ type Device struct {
 	Online    bool `gorm:"default:false;not null;"`
 }
 
-func NewDevice(uuid string) *Device {
+func NewDevice(uid string) *Device {
 	return &Device{
-		UUID:     uuid,
+		UID:      uid,
 		OwnerId:  1,
 		LastSeen: time.Time{},
 		Point:    "laboratory",
-		Label:    uuid,
+		Label:    uid,
 	}
 }
 

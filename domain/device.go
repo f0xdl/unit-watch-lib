@@ -3,7 +3,7 @@ package domain
 import "time"
 
 type Device struct {
-	UUID      string       `json:"uuid"`
+	UID       string       `json:"uid"`
 	Label     string       `json:"label"`
 	Active    bool         `json:"active"`
 	Status    DeviceStatus `json:"status"`

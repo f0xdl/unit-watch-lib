@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"github.com/f0xdl/unit-watch-lib/domain"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"time"
 )
@@ -11,9 +10,6 @@ import (
 type GormStorage struct {
 	db *gorm.DB
 }
-
-//TODO: postgres.Open(dsn)
-//TODO: sqlite.Open(dsn)
 
 func NewGormStorage(dbDial gorm.Dialector, automigrate bool) (*GormStorage, error) {
 	db, err := gorm.Open(dbDial)
@@ -26,7 +22,7 @@ func NewGormStorage(dbDial gorm.Dialector, automigrate bool) (*GormStorage, erro
 			return nil, err
 		}
 	}
-	sqlDB.SetMaxOpenConns(1)
+	//TODO: postgres.Open(dsn)
 	//db.SetMaxOpenConns(10)
 	//db.SetMaxIdleConns(5)
 	//db.SetConnMaxLifetime(30 * time.Minute)

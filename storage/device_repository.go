@@ -12,11 +12,11 @@ type GormStorage struct {
 	db *gorm.DB
 }
 
-func NewGormStorage(path string, cfg *gorm.Config, automigrate bool) (*GormStorage, error) {
-	if cfg == nil {
-		cfg = &gorm.Config{}
-	}
-	db, err := gorm.Open(sqlite.Open(path), cfg)
+//TODO: postgres.Open(dsn)
+//TODO: sqlite.Open(dsn)
+
+func NewGormStorage(dbDial gorm.Dialector, automigrate bool) (*GormStorage, error) {
+	db, err := gorm.Open(dbDial)
 	if err != nil {
 		return nil, err
 	}
@@ -26,7 +26,10 @@ func NewGormStorage(path string, cfg *gorm.Config, automigrate bool) (*GormStora
 			return nil, err
 		}
 	}
-
+	sqlDB.SetMaxOpenConns(1)
+	//db.SetMaxOpenConns(10)
+	//db.SetMaxIdleConns(5)
+	//db.SetConnMaxLifetime(30 * time.Minute)
 	return &GormStorage{db: db}, nil
 }
 

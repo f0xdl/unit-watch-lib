@@ -1,4 +1,4 @@
-package utils
+package configuration
 
 import (
 	"errors"
@@ -6,7 +6,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func LoadConfig(cfg interface{}) error {
+func LoadEnvConfig(cfg interface{}) error {
 	if err := godotenv.Load(); err != nil {
 		return errors.New("error loading .env file: " + err.Error())
 	}

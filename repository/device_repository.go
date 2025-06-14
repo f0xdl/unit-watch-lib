@@ -1,4 +1,4 @@
-package storage
+package repository
 
 import (
 	"context"
@@ -9,11 +9,11 @@ import (
 	"time"
 )
 
-type GormStorage struct {
+type DeviceRepository struct {
 	db *gorm.DB
 }
 
-func NewGormStorage(dbDial gorm.Dialector, automigrate bool) (*GormStorage, error) {
+func NewDeviceRepository(dbDial gorm.Dialector, automigrate bool) (*DeviceRepository, error) {
 	db, err := gorm.Open(dbDial)
 	if err != nil {
 		return nil, err
@@ -28,12 +28,12 @@ func NewGormStorage(dbDial gorm.Dialector, automigrate bool) (*GormStorage, erro
 	//db.SetMaxOpenConns(10)
 	//db.SetMaxIdleConns(5)
 	//db.SetConnMaxLifetime(30 * time.Minute)
-	return &GormStorage{db: db}, nil
+	return &DeviceRepository{db: db}, nil
 }
 
-func (s *GormStorage) GetStatus(ctx context.Context, uid string) (domain.DeviceStatus, error) {
+func (r *DeviceRepository) GetStatus(ctx context.Context, uid string) (domain.DeviceStatus, error) {
 	var d Device
-	err := s.db.
+	err := r.db.
 		WithContext(ctx).
 		First(&d, "uid = ?", uid).
 		Error
@@ -43,16 +43,16 @@ func (s *GormStorage) GetStatus(ctx context.Context, uid string) (domain.DeviceS
 	return domain.DeviceStatus(d.Status), nil
 }
 
-func (s *GormStorage) UpdateStatus(ctx context.Context, uid string, status domain.DeviceStatus) error {
-	return s.db.WithContext(ctx).
+func (r *DeviceRepository) UpdateStatus(ctx context.Context, uid string, status domain.DeviceStatus) error {
+	return r.db.WithContext(ctx).
 		Model(&Device{}).
 		Where("uid = ?", uid).
 		Update("status", status).Error
 }
 
-func (s *GormStorage) Get(ctx context.Context, uid string) (domain.Device, error) {
+func (r *DeviceRepository) Get(ctx context.Context, uid string) (domain.Device, error) {
 	var d Device
-	err := s.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		First(&d, "uid = ?", uid).
 		Error
 	if err != nil {
@@ -69,9 +69,9 @@ func (s *GormStorage) Get(ctx context.Context, uid string) (domain.Device, error
 	}, nil
 }
 
-func (s *GormStorage) GetChatIds(ctx context.Context, uid string) ([]int64, error) {
+func (r *DeviceRepository) GetChatIds(ctx context.Context, uid string) ([]int64, error) {
 	var d Device
-	err := s.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Preload("Groups").
 		First(&d, "uid = ?", uid).
 		Error
@@ -85,8 +85,24 @@ func (s *GormStorage) GetChatIds(ctx context.Context, uid string) ([]int64, erro
 	return ids, nil
 }
 
-func (s *GormStorage) UpdateOnline(ctx context.Context, uid string, online bool) error {
-	return s.db.WithContext(ctx).
+func (r *DeviceRepository) GetDeviceChats(ctx context.Context, uid string) (map[int64]string, error) {
+	var d Device
+	err := r.db.WithContext(ctx).
+		Preload("Groups").
+		First(&d, "uid = ?", uid).
+		Error
+	if err != nil {
+		return nil, err
+	}
+	result := map[int64]string{}
+	for _, g := range d.Groups {
+		result[g.ChatID] = g.Lang
+	}
+	return result, nil
+}
+
+func (r *DeviceRepository) UpdateOnline(ctx context.Context, uid string, online bool) error {
+	return r.db.WithContext(ctx).
 		Model(&Device{}).
 		Where("uid = ?", uid).
 		Update("last_seen", time.Now()).
@@ -94,30 +110,30 @@ func (s *GormStorage) UpdateOnline(ctx context.Context, uid string, online bool)
 		Error
 }
 
-func (s *GormStorage) CreateDevice(ctx context.Context, uid string) error {
-	return s.db.WithContext(ctx).
+func (r *DeviceRepository) CreateDevice(ctx context.Context, uid, hash string) error {
+	return r.db.WithContext(ctx).
 		Create(NewDevice(uid)).
 		Error
 
 }
 
-func (s *GormStorage) SetActive(ctx context.Context, uid string, active bool) error {
-	return s.db.WithContext(ctx).
+func (r *DeviceRepository) SetActive(ctx context.Context, uid string, active bool) error {
+	return r.db.WithContext(ctx).
 		Model(&Device{}).
 		Where("uid = ?", uid).
 		Update("active", active).
 		Error
 }
 
-func (s *GormStorage) UpdateExpires(ctx context.Context, uid string, t time.Time) error {
-	return s.db.WithContext(ctx).
+func (r *DeviceRepository) UpdateExpires(ctx context.Context, uid string, t time.Time) error {
+	return r.db.WithContext(ctx).
 		Model(&Device{}).
 		Where("uid = ?", uid).
 		Update("expires_at", t).
 		Error
 }
-func (s *GormStorage) UpdateInfo(ctx context.Context, uid, label, point string) error {
-	return s.db.WithContext(ctx).
+func (r *DeviceRepository) UpdateInfo(ctx context.Context, uid, label, point string) error {
+	return r.db.WithContext(ctx).
 		Model(&Device{}).
 		Where("uid = ?", uid).
 		Updates(map[string]interface{}{
@@ -126,8 +142,8 @@ func (s *GormStorage) UpdateInfo(ctx context.Context, uid, label, point string) 
 		}).Error
 }
 
-func (s *GormStorage) AssignGroups(ctx context.Context, uid string, chatIDs []int64) error {
-	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+func (r *DeviceRepository) AssignGroups(ctx context.Context, uid string, chatIDs []int64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var device Device
 		err := tx.
 			Where("uid = ?", uid).
@@ -182,15 +198,15 @@ func (s *GormStorage) AssignGroups(ctx context.Context, uid string, chatIDs []in
 	})
 }
 
-func (s *GormStorage) CreateGroup(ctx context.Context, chatID int64) error {
-	return s.db.WithContext(ctx).
+func (r *DeviceRepository) CreateGroup(ctx context.Context, chatID int64) error {
+	return r.db.WithContext(ctx).
 		Create(&Group{ChatID: chatID}).
 		Error
 }
 
-func (s *GormStorage) GetDevice(ctx context.Context, uid string) (*domain.Device, error) {
+func (r *DeviceRepository) GetDevice(ctx context.Context, uid string) (*domain.Device, error) {
 	var device Device
-	err := s.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		First(&device, "uid = ?", uid).
 		Error
 	if err != nil {

@@ -1,9 +1,17 @@
-package storage
+package repository
 
 import (
 	"gorm.io/gorm"
 	"time"
 )
+
+func RegisterModels(db *gorm.DB) error {
+	err := db.Migrator().CreateTable(&Device{}, &Group{}, &Owner{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 type Device struct {
 	gorm.Model
@@ -33,6 +41,7 @@ type Group struct {
 	gorm.Model
 	ChatID  int64     `gorm:"uniqueIndex"`
 	Devices []*Device `gorm:"many2many:device_groups;"`
+	Lang    string
 }
 
 type Owner struct {

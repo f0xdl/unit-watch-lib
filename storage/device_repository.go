@@ -2,6 +2,8 @@ package storage
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/f0xdl/unit-watch-lib/domain"
 	"gorm.io/gorm"
 	"time"
@@ -125,26 +127,59 @@ func (s *GormStorage) UpdateInfo(ctx context.Context, uid, label, point string) 
 }
 
 func (s *GormStorage) AssignGroups(ctx context.Context, uid string, chatIDs []int64) error {
-	var device Device
-	err := s.db.WithContext(ctx).
-		First(&device, "uid = ?", uid).
-		Error
-	if err != nil {
-		return err
-	}
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var device Device
+		err := tx.
+			Where("uid = ?", uid).
+			First(&device).
+			Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("device with UID %s not found", uid)
+			}
+			return fmt.Errorf("failed to find device: %w", err)
+		}
 
-	var groups []*Group
-	err = s.db.WithContext(ctx).
-		Where("chat_id IN ?", chatIDs).
-		Find(&groups).Error
-	if err != nil {
-		return err
-	}
+		err = tx.
+			Model(&device).
+			Association("Groups").
+			Clear()
+		if err != nil {
+			return fmt.Errorf("failed to clear existing groups: %w", err)
+		}
 
-	return s.db.WithContext(ctx).
-		Model(&device).
-		Association("Groups").
-		Replace(groups)
+		if len(chatIDs) == 0 {
+			return nil
+		}
+
+		var groups []*Group
+		for _, chatID := range chatIDs {
+			var group Group
+			err = tx.
+				Where("chat_id = ?", chatID).
+				First(&group).
+				Error
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				group = Group{ChatID: chatID}
+				err = tx.Create(&group).Error
+				if err != nil {
+					return fmt.Errorf("failed to create group with chatID %d: %w", chatID, err)
+				}
+			} else if err != nil {
+				return fmt.Errorf("failed to find group with chatID %d: %w", chatID, err)
+			}
+			groups = append(groups, &group)
+		}
+		err = tx.
+			Model(&device).
+			Association("Groups").
+			Append(groups)
+		if err != nil {
+			return fmt.Errorf("failed to assign groups to device: %w", err)
+		}
+
+		return nil
+	})
 }
 
 func (s *GormStorage) CreateGroup(ctx context.Context, chatID int64) error {

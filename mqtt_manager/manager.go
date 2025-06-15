@@ -12,13 +12,12 @@ type MqttManager struct {
 	isConnected bool
 }
 
-func (m *MqttManager) SetTopicHandle(topic string, h MessageHandler) *MqttManager {
+func (m *MqttManager) SetTopicHandle(topic string, h MessageHandler) {
 	if h != nil {
 		m.topics[topic] = h
 	} else {
 		delete(m.topics, topic)
 	}
-	return m
 }
 
 func NewMqttManager(brokerURL, clientID, username, password string) *MqttManager {
